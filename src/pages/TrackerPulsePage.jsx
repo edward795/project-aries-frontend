@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts'
 import { useProject } from '../context/ProjectContext'
-import { filterByPeriod, periodShort } from '../utils/periodFilter'
 import { checklistsApi, issuesApi, tasksApi } from '../services/api'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const SUMMARY_MATRIX_TAG_ORDER = ['red', 'yellow', 'green', 'blue', 'white']
 const TAG_COLORS_MAP = {
   red: '#ef4444', yellow: '#eab308', green: '#22c55e',
   blue: '#3b82f6', white: '#94a3b8',
@@ -43,16 +43,13 @@ function pickDate(c) {
 // Uses tagLevel from backend first (which now handles ITR-A/B/C/D).
 // Falls back to checklistType text analysis for older / un-re-synced records.
 function deriveTag(c) {
-  // 1. Highest priority: explicit tag_color or color field
+  // 1. Highest priority: explicit tag_color or color field (some CxAlloy versions return this)
   const directColor = (c.tagColor || c.tag_color || c.color || '').toLowerCase().trim()
-  if (['red', 'yellow', 'green', 'blue', 'white'].includes(directColor)) return directColor
+  if (['red', 'yellow', 'green', 'blue'].includes(directColor)) return directColor
 
-  // 2. Trust backend-derived tagLevel if it is a known color
+  // 2. Trust backend-derived tagLevel if it is a known non-white color
   const tl = (c.tagLevel || c.tag_level || '').toLowerCase().trim()
   if (['red', 'yellow', 'green', 'blue'].includes(tl)) return tl
-  // 'white' from backend is ONLY trusted when it came from an actual white/L5 keyword,
-  // not when it was the fallback for null — we re-derive below to confirm
-  const tlIsExplicitWhite = tl === 'white'
 
   // 3. Try checklistType field (full string e.g. "Level-2 YELLOW Tag QA/QC/IVC")
   const fromCt = colorFromText((c.checklistType || c.checklist_type || '').toLowerCase())
@@ -62,9 +59,10 @@ function deriveTag(c) {
   const fromNm = colorFromText((c.name || '').toLowerCase())
   if (fromNm) return fromNm
 
-  // 5. Last resort: scan rawJson for color-bearing fields
+  // 5. Last resort: scan rawJson for color-bearing fields in priority order
   const raw = (c.rawJson || c.raw_json || '').toLowerCase()
   if (raw) {
+    // Try numeric ID fields first (unambiguous: "2" = yellow), then string fields
     for (const field of ['tag_color', 'color', 'checklist_type_id', 'type_id', 'level_id',
                          'tag_level_id', 'checklist_type', 'type', 'tag_type',
                          'template_name', 'category', 'classification']) {
@@ -76,9 +74,7 @@ function deriveTag(c) {
     }
   }
 
-  // If the backend tagLevel was explicitly 'white' (came from an L5/white/vendor keyword),
-  // honour that. Otherwise return null — unclassifiable items are excluded from the matrix.
-  return tlIsExplicitWhite ? 'white' : null
+  return 'white'
 }
 
 // Shared color-extraction logic used by deriveTag()
@@ -123,12 +119,6 @@ function colorFromText(text) {
   if (t.includes('pre-cx') || t.includes('precx') || t.includes('pre cx')) return 'red'
   if (/\bcx[-_]?a\b/.test(t)) return 'yellow'
   if (/\bcx[-_]?b\b/.test(t)) return 'green'
-
-  // Explicit white / L5 / vendor-sign-off keywords — only these justify a white tag
-  if (/\bwhite\b/.test(t))                          return 'white'
-  if (t.includes('level-5') || t.includes('level 5')) return 'white'
-  if (/\bl5\b/.test(t))                             return 'white'
-  if (t.trim() === '5')                             return 'white'
 
   return null
 }
@@ -234,21 +224,21 @@ function computeStats(checklists, issues, tasks) {
     : 'No checklist activity recorded this week yet.'
 
   // ── Tag / color split ─────────────────────────────────────────────────────
-  // deriveTag() now returns null for unclassifiable items (no tag info at all).
-  // null items are excluded from all color buckets — they are NOT counted as white.
+  // FIX 5 — cache deriveTag() per checklist so each item is only classified
+  // once. Previously deriveTag() was called twice per checklist inside filter()
+  // which could produce inconsistent results if the function is not pure for
+  // edge cases, and caused the color totals to not sum to `total`.
   const tagCache = new Map()
   checklists.forEach(c => tagCache.set(c, deriveTag(c)))
 
   const colorCounts = { red: 0, yellow: 0, green: 0, blue: 0, white: 0 }
   checklists.forEach(c => {
     const tag = tagCache.get(c)
-    if (tag === null) return // unclassifiable — skip entirely
     colorCounts[tag] = (colorCounts[tag] || 0) + 1
   })
 
-  // Per-color completion — fixed order: Red → Yellow → Green → Blue → White
-  // White row is only shown when there are actual white-tagged checklists
-  const colorRows = ['red', 'yellow', 'green', 'blue', 'white']
+  // Per-color completion — use cached tags for consistency
+  const colorRows = SUMMARY_MATRIX_TAG_ORDER
     .map(tag => {
       const count = colorCounts[tag] || 0
       const closedOfTag = checklists.filter(c => tagCache.get(c) === tag && isDone(c.status)).length
@@ -384,17 +374,7 @@ function useMultiProjectData() {
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function TrackerPulsePage() {
   const { data, loading } = useMultiProjectData()
-  const { period } = useProject()
-
-  // Filter ALL raw data to the selected period before computing any stats
-  const periodData = useMemo(() => ({
-    checklists: filterByPeriod(data.checklists, period),
-    issues:     filterByPeriod(data.issues,     period),
-    tasks:      filterByPeriod(data.tasks,      period),
-  }), [data, period])
-
-  const stats = useMemo(() => computeStats(periodData.checklists, periodData.issues, periodData.tasks), [periodData])
-  const plabel = periodShort(period)
+  const stats = useMemo(() => computeStats(data.checklists, data.issues, data.tasks), [data])
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300, gap: 12 }}>
@@ -416,20 +396,6 @@ export default function TrackerPulsePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-      {/* ── Period indicator ────────────────────────────────────────────────── */}
-      {period !== 'Overall' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, color: '#64748b' }}>Showing data for:</span>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20,
-            background: 'rgba(14,165,233,0.1)', color: '#0ea5e9', border: '1px solid rgba(14,165,233,0.2)' }}>
-            {plabel}
-          </span>
-          <span style={{ fontSize: 11, color: '#475569' }}>
-            — {periodData.checklists.length} checklists · {periodData.issues.length} issues
-          </span>
-        </div>
-      )}
 
       {/* ── 6 KPI cards ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>

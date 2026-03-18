@@ -260,8 +260,6 @@ export default function GenericListPage({
   entityType,          // 'checklists' | 'tasks' | 'assets' | 'issues' | 'persons' | 'companies' | 'roles'
   searchKeys = ['name', 'title', 'externalId'],
   showStats = true,
-  period = 'Overall',  // passed from EntityPages
-  dateFilterField = null, // which date field to filter on
 }) {
   const [items, setItems]               = useState([])
   const [loading, setLoading]           = useState(true)
@@ -302,38 +300,21 @@ export default function GenericListPage({
     }
   }
 
-  // Period filtering — applied before search
-  const periodItems = useMemo(() => {
-    if (period === 'Overall' || !period) return items
-    const now = new Date()
-    const cutoff = period === 'D' ? new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      : period === 'W' ? new Date(now.getTime() - 7  * 86400000)
-      : new Date(now.getTime() - 30 * 86400000)
-    return items.filter(item => {
-      const raw = dateFilterField
-        ? item[dateFilterField]
-        : (item.updatedAt || item.updated_at || item.createdAt || item.created_at || null)
-      if (!raw) return true // items without dates always show
-      const d = new Date(raw)
-      return !isNaN(d) && d >= cutoff
-    })
-  }, [items, period, dateFilterField])
-
   const stats = useMemo(() => {
-    if (!periodItems.length) return null
-    const total    = periodItems.length
-    const finished = periodItems.filter(i => ['finished','complete','completed','done','closed','resolved','signed_off',
-      'checklist_approved'].includes((i.status || '').toLowerCase().replace(/ /g,'_').replace(/-/g,'_'))).length
-    const inProg   = periodItems.filter(i => ['in_progress','inprogress','started','active','open']
+    if (!items.length) return null
+    const total    = items.length
+    const finished = items.filter(i => ['finished','complete','completed','done','closed','resolved','signed_off']
+      .includes((i.status || '').toLowerCase().replace(/ /g,'_').replace(/-/g,'_'))).length
+    const inProg   = items.filter(i => ['in_progress','inprogress','started','active','open']
       .includes((i.status || '').toLowerCase().replace(/ /g,'_').replace(/-/g,'_'))).length
     const pct = total > 0 ? Math.round((finished / total) * 1000) / 10 : 0
     return { total, finished, inProg, pct }
-  }, [periodItems])
+  }, [items])
 
   const filtered = useMemo(() =>
-    periodItems.filter(item =>
+    items.filter(item =>
       !search || searchKeys.some(k => String(item[k] || '').toLowerCase().includes(search.toLowerCase()))
-    ), [periodItems, search, searchKeys])
+    ), [items, search, searchKeys])
 
   const visibleItems = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount])
   const hasMore   = visibleCount < filtered.length
@@ -408,20 +389,8 @@ export default function GenericListPage({
             {syncing ? 'Syncing...' : 'Sync'}
           </button>
         )}
-        {/* Period indicator — shown when a time window is active */}
-        {period && period !== 'Overall' && (
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
-            background: 'rgba(14,165,233,0.1)', color: '#0ea5e9', border: '1px solid rgba(14,165,233,0.2)',
-            whiteSpace: 'nowrap' }}>
-            {period === 'D' ? 'Today' : period === 'W' ? 'Last 7 days' : 'Last 30 days'}
-          </span>
-        )}
         <div className="glass-card-light px-4 py-2 text-xs text-dark-400">
-          <span className="font-700 text-white">{filtered.length}</span>
-          {items.length !== filtered.length && (
-            <span className="text-dark-500"> / {items.length}</span>
-          )}
-          {' '}records
+          <span className="font-700 text-white">{filtered.length}</span> records
         </div>
       </div>
 

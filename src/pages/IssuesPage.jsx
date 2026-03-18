@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Plus, Search, Filter, RefreshCw, Trash2, Edit2, X, ExternalLink, ChevronDown, AlertCircle } from 'lucide-react'
+import { Plus, Search, Filter, RefreshCw, Trash2, Edit2, X, ExternalLink, ChevronDown } from 'lucide-react'
 import { issuesApi } from '../services/api'
 import { useProject } from '../context/ProjectContext'
 import { Table, StatusBadge, PriorityBadge, Modal, SyncResultCard, EmptyState, Skeleton, DetailGrid } from '../components/ui'
 import toast from 'react-hot-toast'
+import { AlertCircle } from 'lucide-react'
 
 const PAGE_SIZE = 20
 const defaultForm = { title: '', description: '', status: 'open', priority: 'medium', assignee: '', dueDate: '' }

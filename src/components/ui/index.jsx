@@ -83,33 +83,23 @@ export function PriorityBadge({ priority }) {
 
 // ─── Donut chart ─────────────────────────────────────────────────────────────
 export function DonutChart({ value, total, label, color = '#0ea5e9', size = 96 }) {
-  const hasData = total > 0
-  const pct     = hasData ? Math.min(100, (value / total) * 100) : 0
-  const r       = 40
-  const circ    = 2 * Math.PI * r
-  const offset  = circ - (pct / 100) * circ
+  const pct = total > 0 ? (value / total) * 100 : 0
+  const r = 40
+  const circ = 2 * Math.PI * r
+  const offset = circ - (pct / 100) * circ
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} viewBox="0 0 96 96">
-          {/* Track */}
+          {/* Track circle — uses CSS var so it's visible in both light and dark */}
           <circle cx="48" cy="48" r={r} fill="none" stroke="var(--donut-track)" strokeWidth="8" />
-          {/* Progress arc — only render when there is data */}
-          {hasData && (
-            <circle cx="48" cy="48" r={r} fill="none" stroke={color} strokeWidth="8"
-              strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
-              transform="rotate(-90 48 48)"
-              style={{ transition: 'stroke-dashoffset 1s ease' }}
-            />
-          )}
+          <circle cx="48" cy="48" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
+            strokeDasharray={circ} strokeDashoffset={offset} transform="rotate(-90 48 48)"
+            style={{ transition: 'stroke-dashoffset 1s ease' }} />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span style={{ fontSize: size > 90 ? 17 : 13, fontWeight: 800, color: hasData ? color : 'var(--text-muted)', lineHeight: 1.1 }}>
-            {hasData ? `${Math.round(pct)}%` : '—'}
-          </span>
-          <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: 1 }}>
-            {hasData ? `${value}/${total}` : '0/0'}
-          </span>
+          <span style={{ fontSize: size > 90 ? 17 : 13, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.1 }}>{Math.round(pct)}%</span>
+          <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: 1 }}>{value}/{total}</span>
         </div>
       </div>
       {label && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{label}</span>}

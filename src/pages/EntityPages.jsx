@@ -7,15 +7,13 @@ import { StatusBadge } from '../components/ui'
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
 export function TasksPage() {
-  const { activeProject, period } = useProject()
+  const { activeProject } = useProject()
   return (
     <GenericListPage
       entityType="tasks"
       fetchFn={(pid) => tasksApi.getAll(pid ? { projectId: pid } : {})}
       syncFn={(pid) => tasksApi.sync(pid)}
       activeProjectId={activeProject?.externalId}
-      period={period}
-      dateFilterField="createdAt"
       emptyIcon={CheckSquare}
       emptyTitle="No Tasks Found"
       emptyDesc="Sync to pull tasks from CxAlloy"
@@ -32,6 +30,7 @@ export function TasksPage() {
 }
 
 // ─── Checklists ───────────────────────────────────────────────────────────────
+// Helper: format ISO date strings to MM/DD/YYYY matching CxAlloy UI
 function fmtDate(v) {
   if (!v) return '—'
   try {
@@ -42,15 +41,13 @@ function fmtDate(v) {
 }
 
 export function ChecklistsPage() {
-  const { activeProject, period } = useProject()
+  const { activeProject } = useProject()
   return (
     <GenericListPage
       entityType="checklists"
       fetchFn={(pid) => checklistsApi.getAll(pid)}
       syncFn={(pid) => checklistsApi.sync(pid)}
       activeProjectId={activeProject?.externalId}
-      period={period}
-      dateFilterField="updatedAt"
       emptyIcon={Tag}
       emptyTitle="No Checklists Found"
       emptyDesc="Sync to pull checklists from CxAlloy"
@@ -72,16 +69,16 @@ export function ChecklistsPage() {
 }
 
 // ─── Equipment ────────────────────────────────────────────────────────────────
+// Dedicated page for CxAlloy GET /equipment — individual equipment records with
+// type, discipline, tag, status, and location hierarchy fields.
 export function EquipmentPage() {
-  const { activeProject, period } = useProject()
+  const { activeProject } = useProject()
   return (
     <GenericListPage
       entityType="equipment"
       fetchFn={(pid) => equipmentApi.getAll(pid)}
       syncFn={(pid) => equipmentApi.sync(pid)}
       activeProjectId={activeProject?.externalId}
-      period={period}
-      dateFilterField="updatedAt"
       emptyIcon={Cpu}
       emptyTitle="No Equipment Found"
       emptyDesc="Sync to pull equipment records from CxAlloy GET /equipment"
@@ -125,7 +122,7 @@ export function AssetsPage() {
   )
 }
 
-// ─── Persons — reference data, no period filter ───────────────────────────────
+// ─── Persons ──────────────────────────────────────────────────────────────────
 export function PersonsPage() {
   const { activeProject } = useProject()
   return (
@@ -151,7 +148,7 @@ export function PersonsPage() {
   )
 }
 
-// ─── Companies — reference data, no period filter ─────────────────────────────
+// ─── Companies ────────────────────────────────────────────────────────────────
 export function CompaniesPage() {
   const { activeProject } = useProject()
   return (
@@ -176,7 +173,7 @@ export function CompaniesPage() {
   )
 }
 
-// ─── Roles — reference data, no period filter ─────────────────────────────────
+// ─── Roles ────────────────────────────────────────────────────────────────────
 export function RolesPage() {
   const { activeProject } = useProject()
   return (

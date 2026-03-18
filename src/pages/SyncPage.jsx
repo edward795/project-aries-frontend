@@ -10,12 +10,11 @@ const SYNC_TYPES = [
   { key: 'tasks',     label: 'Tasks',     color: 'text-yellow-400' },
   { key: 'checklists',label: 'Checklists',color: 'text-green-400' },
   { key: 'equipment', label: 'Equipment', color: 'text-orange-400' },
-  { key: 'tests',     label: 'Tests',     color: 'text-purple-400' },
   { key: 'persons',   label: 'Persons',   color: 'text-blue-400' },
-  { key: 'companies', label: 'Companies', color: 'text-sky-400' },
-  { key: 'roles',     label: 'Roles',     color: 'text-teal-400' },
-  { key: 'assets',    label: 'Assets',    color: 'text-pink-400' },
-  { key: 'files',     label: 'Files',     color: 'text-gray-400' },
+  { key: 'companies', label: 'Companies', color: 'text-purple-400' },
+  { key: 'roles',     label: 'Roles',     color: 'text-sky-400' },
+  { key: 'assets',    label: 'Assets',    color: 'text-teal-400' },
+  { key: 'files',     label: 'Files',     color: 'text-pink-400' },
 ]
 
 export default function SyncPage() {

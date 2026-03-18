@@ -11,8 +11,6 @@
  *   spaceId, zoneId, buildingId, floorId, location (pre-derived by backend)
  *   createdAt, updatedAt, rawJson, syncedAt
  *
- * AI Analysis: uses OpenAI GPT-4o-mini via VITE_OPENAI_API_KEY env var.
- * Add VITE_OPENAI_API_KEY=sk-... to your .env file.
  */
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useProject } from '../context/ProjectContext'
@@ -21,7 +19,7 @@ import { issuesApi } from '../services/api'
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ALL_STATUSES = ['Open', 'Correction In Progress', 'Ready For Verification', 'Closed']
 const PRIORITIES   = ['P1 - Critical', 'P2 - High', 'P3 - Medium', 'P4 - Low']
-const TABS         = ['Statistics', 'Flow Analysis', 'Cross-Company', 'AI Analysis']
+const TABS         = ['Statistics', 'Flow Analysis', 'Cross-Company']
 
 const STATUS_COLORS = {
   'Open':                      '#ef4444',
@@ -704,23 +702,8 @@ Be concise, actionable, and construction/commissioning focused. Keep answers und
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function IssueRadarPage() {
   const { issues, loading, error } = useIssueData()
-  const { period } = useProject()
+  const radar = useMemo(() => computeRadar(issues), [issues])
   const [activeTab, setActiveTab] = useState('Statistics')
-
-  // Filter issues to the selected period before computing any radar stats
-  const periodIssues = useMemo(() => {
-    if (period === 'Overall') return issues
-    const now = new Date()
-    const cutoff = period === 'D' ? new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      : period === 'W' ? new Date(now.getTime() - 7  * 86400000)
-      : new Date(now.getTime() - 30 * 86400000)
-    return issues.filter(i => {
-      const d = new Date(i.createdAt || i.created_at || i.updatedAt || i.updated_at || 0)
-      return !isNaN(d) && d >= cutoff
-    })
-  }, [issues, period])
-
-  const radar = useMemo(() => computeRadar(periodIssues), [periodIssues])
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -740,18 +723,9 @@ export default function IssueRadarPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Title */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Issue Radar</h2>
-          <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Issue statistics, workflow bottlenecks, cross-company impact, and AI root-cause diagnostics.</p>
-        </div>
-        {period !== 'Overall' && (
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 12px', borderRadius: 20,
-            background: 'rgba(14,165,233,0.1)', color: '#0ea5e9', border: '1px solid rgba(14,165,233,0.2)' }}>
-            {period === 'D' ? 'Today' : period === 'W' ? 'Last 7 Days' : 'Last 30 Days'}
-            &nbsp;·&nbsp;{periodIssues.length} issues
-          </span>
-        )}
+      <div>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Issue Radar</h2>
+        <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Issue statistics, workflow bottlenecks, and cross-company impact.</p>
       </div>
 
       {/* Summary insight bar */}
@@ -798,7 +772,6 @@ export default function IssueRadarPage() {
           {activeTab === 'Statistics'    && <StatisticsTab    radar={radar} />}
           {activeTab === 'Flow Analysis' && <FlowAnalysisTab  radar={radar} />}
           {activeTab === 'Cross-Company' && <CrossCompanyTab  radar={radar} />}
-          {activeTab === 'AI Analysis'   && <AICopilot radar={radar} issues={issues} />}
         </>
       )}
     </div>
